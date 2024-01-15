@@ -30,7 +30,7 @@ class PrimeFinder
     public PrimeFinder(int threadCount, int maxPrimeNumber)
     {
         threads = new Thread[threadCount];
-        isPrime = new boolean[maxPrimeNumber];
+        isPrime = new boolean[maxPrimeNumber + 1];
         Arrays.fill(isPrime, true);
         counter = 2;
         primeCount = 0;
@@ -42,19 +42,26 @@ class PrimeFinder
         if (counter > getMaxPrimeNumber())
         {
             return counter;
-        }
+        } else
+        {
+            if (!isPrime[counter])
+            {
+                ++counter;
+                return getAndIncrementCounter();
+            }
 
-        return counter++;
+            return counter++;
+        }
     }
 
     public boolean getIsPrime(int number)
     {
-        return isPrime[number - 1];
+        return isPrime[number];
     }
 
     public int getMaxPrimeNumber()
     {
-        return isPrime.length;
+        return isPrime.length - 1;
     }
 
     public int getPrimeCount()
@@ -69,7 +76,7 @@ class PrimeFinder
 
     public void setIsPrime(int number, boolean isPrime)
     {
-        this.isPrime[number - 1] = isPrime;
+        this.isPrime[number] = isPrime;
     }
 
     public synchronized void incrementPrimeCount()
@@ -115,6 +122,9 @@ class PrimeFinderThread implements Runnable
     @Override
     public void run()
     {
+        primeFinder.setIsPrime(0, false);
+        primeFinder.setIsPrime(1, false);
+
         int i = primeFinder.getAndIncrementCounter(), maxPrimeNumber = primeFinder.getMaxPrimeNumber();
         while (i <= maxPrimeNumber)
         {
@@ -134,14 +144,22 @@ class PrimeFinderThread implements Runnable
     private boolean checkPrime(int number)
     {
         int maxFactor = (int) Math.sqrt(number);
-        for (int factor = 2; factor <= maxFactor; ++factor)
+        for (int i = 2; i <= maxFactor; ++i)
         {
-            if (primeFinder.getIsPrime(number) && number % factor == 0)
+            if (primeFinder.getIsPrime(number) && number % i == 0)
             {
                 return false;
             }
         }
 
+        int maxPrimeNumber = primeFinder.getMaxPrimeNumber();
+        for (int i = number; i <= maxPrimeNumber; i += number)
+        {
+            if(primeFinder.getIsPrime(i))
+            {
+                primeFinder.setIsPrime(i, false);
+            }
+        }
         return true;
     }
 }
