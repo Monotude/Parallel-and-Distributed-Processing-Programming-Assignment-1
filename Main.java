@@ -1,41 +1,60 @@
+import java.util.Arrays;
+
 public class Main
 {
     private static final int threadCount = 8;
+    private static final int maxPrimeNumber = 100000000;
 
     public static void main(String[] args)
     {
         long startTime = System.nanoTime();
 
-        PrimeFinder primeFinder = new PrimeFinder(threadCount);
+        PrimeFinder primeFinder = new PrimeFinder(threadCount, maxPrimeNumber);
         primeFinder.FindPrimes();
 
         long endTime = System.nanoTime();
 
         long runTimeSeconds = (endTime - startTime) / 1000000;
-        System.out.print(runTimeSeconds + "ms " + primeFinder.getPrimeCount() + " " + primeFinder.getPrimeSum());
-
-        System.out.println();
+        System.out.println(runTimeSeconds + "ms " + primeFinder.getPrimeCount() + " " + primeFinder.getPrimeSum());
     }
 }
 
 class PrimeFinder
 {
-    private final int threadCount;
     private final Thread[] threads;
+    private final boolean[] isPrime;
+    private int counter;
     private int primeCount;
     private long primeSum;
 
-    public PrimeFinder(int threadCount)
+    public PrimeFinder(int threadCount, int maxPrimeNumber)
     {
-        this.threadCount = threadCount;
         threads = new Thread[threadCount];
+        isPrime = new boolean[maxPrimeNumber];
+        Arrays.fill(isPrime, true);
+        counter = 2;
         primeCount = 0;
         primeSum = 0;
     }
 
-    public int getThreadCount()
+    public synchronized int getAndIncrementCounter()
     {
-        return threadCount;
+        if (counter > getMaxPrimeNumber())
+        {
+            return counter;
+        }
+
+        return counter++;
+    }
+
+    public boolean getIsPrime(int number)
+    {
+        return isPrime[number - 1];
+    }
+
+    public int getMaxPrimeNumber()
+    {
+        return isPrime.length;
     }
 
     public int getPrimeCount()
@@ -46,6 +65,11 @@ class PrimeFinder
     public long getPrimeSum()
     {
         return primeSum;
+    }
+
+    public void setIsPrime(int number, boolean isPrime)
+    {
+        this.isPrime[number - 1] = isPrime;
     }
 
     public synchronized void incrementPrimeCount()
@@ -60,17 +84,17 @@ class PrimeFinder
 
     public void FindPrimes()
     {
-        for (int i = 0; i < threadCount; ++i)
+        for (int i = 0; i < threads.length; ++i)
         {
-            threads[i] = new Thread(new PrimeFinderThread(this, i + 1));
+            threads[i] = new Thread(new PrimeFinderThread(this));
             threads[i].start();
         }
 
-        for (int i = 0; i < threadCount; ++i)
+        for (Thread thread : threads)
         {
             try
             {
-                threads[i].join();
+                thread.join();
             } catch (Exception exception)
             {
                 System.out.println("Unknown Error has occurred");
@@ -81,35 +105,29 @@ class PrimeFinder
 
 class PrimeFinderThread implements Runnable
 {
-    private static final int maxNumber = 100000000;
     PrimeFinder primeFinder;
-    private final int threadNumber;
 
-    public PrimeFinderThread(PrimeFinder primeFinder, int threadNumber)
+    public PrimeFinderThread(PrimeFinder primeFinder)
     {
         this.primeFinder = primeFinder;
-        this.threadNumber = threadNumber;
     }
 
     @Override
     public void run()
     {
-        int startNumber = threadNumber;
-
-        if (startNumber == 1)
-        {
-            startNumber += primeFinder.getThreadCount();
-        }
-
-        for (int i = startNumber; i < maxNumber; i += primeFinder.getThreadCount())
+        int i = primeFinder.getAndIncrementCounter(), maxPrimeNumber = primeFinder.getMaxPrimeNumber();
+        while (i <= maxPrimeNumber)
         {
             boolean isPrime = checkPrime(i);
+            primeFinder.setIsPrime(i, isPrime);
 
             if (isPrime)
             {
                 primeFinder.incrementPrimeCount();
                 primeFinder.incrementPrimeSum(i);
             }
+
+            i = primeFinder.getAndIncrementCounter();
         }
     }
 
@@ -118,7 +136,7 @@ class PrimeFinderThread implements Runnable
         int maxFactor = (int) Math.sqrt(number);
         for (int factor = 2; factor <= maxFactor; ++factor)
         {
-            if (number % factor == 0)
+            if (primeFinder.getIsPrime(number) && number % factor == 0)
             {
                 return false;
             }
