@@ -128,10 +128,9 @@ class PrimeFinderThread implements Runnable
         int i = primeFinder.getAndIncrementCounter(), maxPrimeNumber = primeFinder.getMaxPrimeNumber();
         while (i <= maxPrimeNumber)
         {
-            boolean isPrime = checkPrime(i);
-            primeFinder.setIsPrime(i, isPrime);
+            checkPrime(i);
 
-            if (isPrime)
+            if (primeFinder.getIsPrime(i))
             {
                 primeFinder.incrementPrimeCount();
                 primeFinder.incrementPrimeSum(i);
@@ -141,25 +140,22 @@ class PrimeFinderThread implements Runnable
         }
     }
 
-    private boolean checkPrime(int number)
+    private void checkPrime(int number)
     {
         int maxFactor = (int) Math.sqrt(number);
         for (int i = 2; i <= maxFactor; ++i)
         {
-            if (primeFinder.getIsPrime(number) && number % i == 0)
+            if (primeFinder.getIsPrime(i) && number % i == 0)
             {
-                return false;
+                primeFinder.setIsPrime(number, false);
+                return;
             }
         }
 
         int maxPrimeNumber = primeFinder.getMaxPrimeNumber();
-        for (int i = number; i <= maxPrimeNumber; i += number)
+        for (int i = 2 * number; i <= maxPrimeNumber; i += number)
         {
-            if(primeFinder.getIsPrime(i))
-            {
-                primeFinder.setIsPrime(i, false);
-            }
+            primeFinder.setIsPrime(i, false);
         }
-        return true;
     }
 }
