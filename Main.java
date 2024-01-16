@@ -1,3 +1,4 @@
+import java.io.FileWriter;
 import java.util.Arrays;
 
 public class Main
@@ -10,7 +11,7 @@ public class Main
         long startTimeNanoseconds = System.nanoTime();
 
         PrimeFinder primeFinder = new PrimeFinder(THREAD_COUNT, MAX_PRIME_NUMBER);
-        primeFinder.FindPrimes();
+        primeFinder.findPrimes();
 
         long endTimeNanoseconds = System.nanoTime();
 
@@ -21,8 +22,8 @@ public class Main
 
 class PrimeFinder
 {
-    private Thread[] threads;
-    private boolean[] isPrime;
+    private final Thread[] threads;
+    private final boolean[] isPrime;
     private int counter;
     private int primeCount;
     private long primeSum;
@@ -35,6 +36,16 @@ class PrimeFinder
         counter = 2;
         primeCount = 0;
         primeSum = 0;
+    }
+
+    public int getMaxPrimeNumber()
+    {
+        return isPrime.length - 1;
+    }
+
+    public boolean getIsPrime(int number)
+    {
+        return isPrime[number];
     }
 
     public synchronized int getAndIncrementCounter()
@@ -53,11 +64,6 @@ class PrimeFinder
         }
     }
 
-    public int getMaxPrimeNumber()
-    {
-        return isPrime.length - 1;
-    }
-
     public int getPrimeCount()
     {
         return primeCount;
@@ -73,11 +79,25 @@ class PrimeFinder
         this.isPrime[number] = isPrime;
     }
 
-    public void FindPrimes()
+    public void findPrimes()
     {
         this.isPrime[0] = false;
         this.isPrime[1] = false;
 
+        runThreads();
+
+        for (int i = 0; i < isPrime.length; ++i)
+        {
+            if (isPrime[i])
+            {
+                ++primeCount;
+                primeSum += i;
+            }
+        }
+    }
+
+    private void runThreads()
+    {
         for (int i = 0; i < threads.length; ++i)
         {
             threads[i] = new Thread(new PrimeFinderThread(this));
@@ -91,23 +111,21 @@ class PrimeFinder
                 thread.join();
             } catch (Exception exception)
             {
-                System.out.println("Thread Error has occurred");
-            }
-        }
-
-        for(int i = 0; i < isPrime.length ; ++i)
-        {
-            if(isPrime[i])
-            {
-                ++primeCount;
-                primeSum += i;
+                System.out.println("Thread error has occurred");
             }
         }
     }
 
-    public void WriteToFile()
+    public void writeToFile()
     {
-
+        try
+        {
+            FileWriter primesFileWriter = new FileWriter("primes.txt");
+            primesFileWriter.write("A");
+        } catch (Exception exception)
+        {
+            System.out.println("File error has occurred");
+        }
     }
 }
 
@@ -135,7 +153,10 @@ class PrimeFinderThread implements Runnable
     {
         for (int i = number * number; i <= maxPrimeNumber; i += number)
         {
-            primeFinder.setIsPrime(i, false);
+            if (primeFinder.getIsPrime(i))
+            {
+                primeFinder.setIsPrime(i, false);
+            }
         }
     }
 }
