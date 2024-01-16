@@ -2,27 +2,27 @@ import java.util.Arrays;
 
 public class Main
 {
-    private static final int threadCount = 8;
-    private static final int maxPrimeNumber = 100000000;
+    private static final int THREAD_COUNT = 8;
+    private static final int MAX_PRIME_NUMBER = 100000000;
 
     public static void main(String[] args)
     {
-        long startTime = System.nanoTime();
+        long startTimeNanoseconds = System.nanoTime();
 
-        PrimeFinder primeFinder = new PrimeFinder(threadCount, maxPrimeNumber);
+        PrimeFinder primeFinder = new PrimeFinder(THREAD_COUNT, MAX_PRIME_NUMBER);
         primeFinder.FindPrimes();
 
-        long endTime = System.nanoTime();
+        long endTimeNanoseconds = System.nanoTime();
 
-        long runTimeSeconds = (endTime - startTime) / 1000000;
-        System.out.println(runTimeSeconds + "ms " + primeFinder.getPrimeCount() + " " + primeFinder.getPrimeSum());
+        long runTimeMilliseconds = (endTimeNanoseconds - startTimeNanoseconds) / 1000000;
+        System.out.println(runTimeMilliseconds + "ms " + primeFinder.getPrimeCount() + " " + primeFinder.getPrimeSum());
     }
 }
 
 class PrimeFinder
 {
-    private final Thread[] threads;
-    private final boolean[] isPrime;
+    private Thread[] threads;
+    private boolean[] isPrime;
     private int counter;
     private int primeCount;
     private long primeSum;
@@ -44,19 +44,13 @@ class PrimeFinder
             return counter;
         } else
         {
-            if (!isPrime[counter])
+            while (!isPrime[counter])
             {
                 ++counter;
-                return getAndIncrementCounter();
             }
 
             return counter++;
         }
-    }
-
-    public boolean getIsPrime(int number)
-    {
-        return isPrime[number];
     }
 
     public int getMaxPrimeNumber()
@@ -79,18 +73,11 @@ class PrimeFinder
         this.isPrime[number] = isPrime;
     }
 
-    public synchronized void incrementPrimeCount()
-    {
-        ++primeCount;
-    }
-
-    public synchronized void incrementPrimeSum(int number)
-    {
-        primeSum += number;
-    }
-
     public void FindPrimes()
     {
+        this.isPrime[0] = false;
+        this.isPrime[1] = false;
+
         for (int i = 0; i < threads.length; ++i)
         {
             threads[i] = new Thread(new PrimeFinderThread(this));
@@ -104,9 +91,23 @@ class PrimeFinder
                 thread.join();
             } catch (Exception exception)
             {
-                System.out.println("Unknown Error has occurred");
+                System.out.println("Thread Error has occurred");
             }
         }
+
+        for(int i = 0; i < isPrime.length ; ++i)
+        {
+            if(isPrime[i])
+            {
+                ++primeCount;
+                primeSum += i;
+            }
+        }
+    }
+
+    public void WriteToFile()
+    {
+
     }
 }
 
@@ -122,38 +123,17 @@ class PrimeFinderThread implements Runnable
     @Override
     public void run()
     {
-        primeFinder.setIsPrime(0, false);
-        primeFinder.setIsPrime(1, false);
-
-        int i = primeFinder.getAndIncrementCounter(), maxPrimeNumber = primeFinder.getMaxPrimeNumber();
-        while (i <= maxPrimeNumber)
+        int numberToCheck = primeFinder.getAndIncrementCounter(), maxPrimeFactor = (int) Math.sqrt(primeFinder.getMaxPrimeNumber());
+        while (numberToCheck <= maxPrimeFactor)
         {
-            checkPrime(i);
-
-            if (primeFinder.getIsPrime(i))
-            {
-                primeFinder.incrementPrimeCount();
-                primeFinder.incrementPrimeSum(i);
-            }
-
-            i = primeFinder.getAndIncrementCounter();
+            checkPrime(numberToCheck, primeFinder.getMaxPrimeNumber());
+            numberToCheck = primeFinder.getAndIncrementCounter();
         }
     }
 
-    private void checkPrime(int number)
+    private void checkPrime(int number, int maxPrimeNumber)
     {
-        int maxFactor = (int) Math.sqrt(number);
-        for (int i = 2; i <= maxFactor; ++i)
-        {
-            if (primeFinder.getIsPrime(i) && number % i == 0)
-            {
-                primeFinder.setIsPrime(number, false);
-                return;
-            }
-        }
-
-        int maxPrimeNumber = primeFinder.getMaxPrimeNumber();
-        for (int i = 2 * number; i <= maxPrimeNumber; i += number)
+        for (int i = number * number; i <= maxPrimeNumber; i += number)
         {
             primeFinder.setIsPrime(i, false);
         }
