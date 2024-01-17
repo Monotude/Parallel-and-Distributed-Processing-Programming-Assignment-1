@@ -26,6 +26,7 @@ class PrimeFinder
 {
     private final Thread[] threads;
     private final AtomicBoolean[] isPrime;
+    private final int maxPrimeFactor;
     private int counter;
     private int primeCount;
     private long primeSum;
@@ -36,9 +37,9 @@ class PrimeFinder
         isPrime = new AtomicBoolean[maxPrimeNumber + 1];
         for (int i = 0; i < isPrime.length; ++i)
         {
-            isPrime[i] = new AtomicBoolean();
-            isPrime[i].set(true);
+            isPrime[i] = new AtomicBoolean(true);
         }
+        maxPrimeFactor = (int) Math.sqrt(maxPrimeNumber);
         counter = 2;
         primeCount = 0;
         primeSum = 0;
@@ -49,33 +50,35 @@ class PrimeFinder
         return isPrime.length - 1;
     }
 
+    public int getMaxPrimeFactor()
+    {
+        return maxPrimeFactor;
+    }
+
     public synchronized int getAndIncrementCounter()
     {
-        int maxPrimeNumber = getMaxPrimeNumber();
-        if (counter <= maxPrimeNumber)
+        while (counter <= maxPrimeFactor && !isPrime[counter].get())
         {
-            while (counter <= maxPrimeNumber && !isPrime[counter].get())
-            {
-                ++counter;
-            }
-
-            if (counter <= maxPrimeNumber)
-            {
-                return counter++;
-            }
+            ++counter;
         }
+
+        if (counter <= maxPrimeFactor)
+        {
+            return counter++;
+        }
+
         return counter;
     }
 
     public void setIsPrime(int number, boolean expectedValue, boolean changedValue)
     {
-        this.isPrime[number].compareAndSet(expectedValue, changedValue);
+        isPrime[number].compareAndSet(expectedValue, changedValue);
     }
 
     public void findPrimes()
     {
-        this.isPrime[0].set(false);
-        this.isPrime[1].set(false);
+        isPrime[0].set(false);
+        isPrime[1].set(false);
 
         runThreads();
 
@@ -166,7 +169,7 @@ class PrimeFinderThread implements Runnable
     @Override
     public void run()
     {
-        int numberToCheck = primeFinder.getAndIncrementCounter(), maxPrimeFactor = (int) Math.sqrt(primeFinder.getMaxPrimeNumber());
+        int numberToCheck = primeFinder.getAndIncrementCounter(), maxPrimeFactor = primeFinder.getMaxPrimeFactor();
         while (numberToCheck <= maxPrimeFactor)
         {
             checkPrimeMultiples(numberToCheck, primeFinder.getMaxPrimeNumber());
