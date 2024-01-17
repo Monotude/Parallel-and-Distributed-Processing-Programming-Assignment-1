@@ -5,6 +5,7 @@ public class Main
 {
     private static final int THREAD_COUNT = 8;
     private static final int MAX_PRIME_NUMBER = 100000000;
+    private static final int NUMBER_OF_PRIMES_TO_WRITE = 10;
 
     public static void main(String[] args)
     {
@@ -17,7 +18,7 @@ public class Main
 
         long runTimeMilliseconds = (endTimeNanoseconds - startTimeNanoseconds) / 1000000;
 
-        primeFinder.writeToFile(runTimeMilliseconds);
+        primeFinder.writeToFile(runTimeMilliseconds, NUMBER_OF_PRIMES_TO_WRITE);
     }
 }
 
@@ -108,18 +109,47 @@ class PrimeFinder
         }
     }
 
-    public void writeToFile(long runtime)
+    public void writeToFile(long runtime, int numberOfPrimesToWrite)
     {
-        try
+        try (FileWriter primesFileWriter = new FileWriter("primes.txt"))
         {
-            FileWriter primesFileWriter = new FileWriter("primes.txt");
-            primesFileWriter.write("Runtime: " + runtime + " ms\n" );
+            primesFileWriter.write("Runtime: " + runtime + " ms\n");
+
             primesFileWriter.write("Prime count: " + primeCount + "\n");
+
             primesFileWriter.write("Prime sum: " + primeSum + "\n");
-            primesFileWriter.close();
+
+            writeLargestPrimes(primesFileWriter, numberOfPrimesToWrite);
         } catch (Exception exception)
         {
             System.out.println("File error has occurred");
+        }
+    }
+
+    private void writeLargestPrimes(FileWriter primesFileWriter, int numberOfPrimesToWrite)
+    {
+        int[] primesToWrite = new int[numberOfPrimesToWrite];
+        for (int i = getMaxPrimeNumber(); i >= 0; --i)
+        {
+            if (numberOfPrimesToWrite == 0)
+            {
+                break;
+            }
+
+            if (isPrime[i].get())
+            {
+                primesToWrite[--numberOfPrimesToWrite] = i;
+            }
+        }
+        for (int prime : primesToWrite)
+        {
+            try
+            {
+                primesFileWriter.write(prime + "\n");
+            } catch (Exception exception)
+            {
+                System.out.println("File error has occurred");
+            }
         }
     }
 }
