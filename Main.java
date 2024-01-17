@@ -1,5 +1,5 @@
 import java.io.FileWriter;
-import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main
 {
@@ -16,14 +16,15 @@ public class Main
         long endTimeNanoseconds = System.nanoTime();
 
         long runTimeMilliseconds = (endTimeNanoseconds - startTimeNanoseconds) / 1000000;
-        System.out.println(runTimeMilliseconds + "ms " + primeFinder.getPrimeCount() + " " + primeFinder.getPrimeSum());
+
+        primeFinder.writeToFile(runTimeMilliseconds);
     }
 }
 
 class PrimeFinder
 {
     private final Thread[] threads;
-    private final boolean[] isPrime;
+    private final AtomicBoolean[] isPrime;
     private int counter;
     private int primeCount;
     private long primeSum;
@@ -31,8 +32,12 @@ class PrimeFinder
     public PrimeFinder(int threadCount, int maxPrimeNumber)
     {
         threads = new Thread[threadCount];
-        isPrime = new boolean[maxPrimeNumber + 1];
-        Arrays.fill(isPrime, true);
+        isPrime = new AtomicBoolean[maxPrimeNumber + 1];
+        for (int i = 0; i < isPrime.length; ++i)
+        {
+            isPrime[i] = new AtomicBoolean();
+            isPrime[i].set(true);
+        }
         counter = 2;
         primeCount = 0;
         primeSum = 0;
@@ -43,52 +48,39 @@ class PrimeFinder
         return isPrime.length - 1;
     }
 
-    public boolean getIsPrime(int number)
-    {
-        return isPrime[number];
-    }
-
     public synchronized int getAndIncrementCounter()
     {
-        if (counter > getMaxPrimeNumber())
+        int maxPrimeNumber = getMaxPrimeNumber();
+        if (counter <= maxPrimeNumber)
         {
-            return counter;
-        } else
-        {
-            while (!isPrime[counter])
+            while (counter <= maxPrimeNumber && !isPrime[counter].get())
             {
                 ++counter;
             }
 
-            return counter++;
+            if (counter <= maxPrimeNumber)
+            {
+                return counter++;
+            }
         }
+        return counter;
     }
 
-    public int getPrimeCount()
+    public void setIsPrime(int number, boolean expectedValue, boolean changedValue)
     {
-        return primeCount;
-    }
-
-    public long getPrimeSum()
-    {
-        return primeSum;
-    }
-
-    public void setIsPrime(int number, boolean isPrime)
-    {
-        this.isPrime[number] = isPrime;
+        this.isPrime[number].compareAndSet(expectedValue, changedValue);
     }
 
     public void findPrimes()
     {
-        this.isPrime[0] = false;
-        this.isPrime[1] = false;
+        this.isPrime[0].set(false);
+        this.isPrime[1].set(false);
 
         runThreads();
 
         for (int i = 0; i < isPrime.length; ++i)
         {
-            if (isPrime[i])
+            if (isPrime[i].get())
             {
                 ++primeCount;
                 primeSum += i;
@@ -116,12 +108,15 @@ class PrimeFinder
         }
     }
 
-    public void writeToFile()
+    public void writeToFile(long runtime)
     {
         try
         {
             FileWriter primesFileWriter = new FileWriter("primes.txt");
-            primesFileWriter.write("A");
+            primesFileWriter.write("Runtime: " + runtime + " ms\n" );
+            primesFileWriter.write("Prime count: " + primeCount + "\n");
+            primesFileWriter.write("Prime sum: " + primeSum + "\n");
+            primesFileWriter.close();
         } catch (Exception exception)
         {
             System.out.println("File error has occurred");
@@ -144,19 +139,16 @@ class PrimeFinderThread implements Runnable
         int numberToCheck = primeFinder.getAndIncrementCounter(), maxPrimeFactor = (int) Math.sqrt(primeFinder.getMaxPrimeNumber());
         while (numberToCheck <= maxPrimeFactor)
         {
-            checkPrime(numberToCheck, primeFinder.getMaxPrimeNumber());
+            checkPrimeMultiples(numberToCheck, primeFinder.getMaxPrimeNumber());
             numberToCheck = primeFinder.getAndIncrementCounter();
         }
     }
 
-    private void checkPrime(int number, int maxPrimeNumber)
+    private void checkPrimeMultiples(int number, int maxPrimeNumber)
     {
         for (int i = number * number; i <= maxPrimeNumber; i += number)
         {
-            if (primeFinder.getIsPrime(i))
-            {
-                primeFinder.setIsPrime(i, false);
-            }
+            primeFinder.setIsPrime(i, true, false);
         }
     }
 }
